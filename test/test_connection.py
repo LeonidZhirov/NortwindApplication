@@ -1,6 +1,5 @@
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
-
 from db import get_connection
 
 def test_connection():
@@ -13,13 +12,3 @@ def test_connection():
     except OperationalError as e:
         print(f"❌ Ошибка подключения: {e}")
         return False
-
-
-'''def test_tables_exist():
-    with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT COUNT(*) 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-        """))
-        assert result.fetchone()[0] > 0'''
