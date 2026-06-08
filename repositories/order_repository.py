@@ -22,7 +22,7 @@ class OrderRepository:
 
         for item in cart_items:
             order_detail = OrderDetail(
-                order=order,  # Связь через ORM
+                order=order,
                 product_id=item.product_id,
                 unit_price=item.unit_price,
                 quantity=item.quantity,
