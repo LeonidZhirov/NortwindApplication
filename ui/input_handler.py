@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple
-from repositories.products import ProductRepository
-from repositories.shippers import ShipperRepository
+from repositories.product_repository import ProductRepository
+from repositories.shipper_repository import ShipperRepository
 
 #TODO Correct the select_shipper for all available shippers ids
 class InputHandler:

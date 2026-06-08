@@ -1,5 +1,5 @@
 from typing import List
-from repositories.orders import OrderRepository
+from repositories.order_repository import OrderRepository
 from models.cart_item_model import CartItem
 
 
