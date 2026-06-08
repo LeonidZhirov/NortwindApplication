@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import Integer, ForeignKey, Numeric
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from models.order import  Order
+from models.order_model import  Order
 
 
 class Base(DeclarativeBase):
