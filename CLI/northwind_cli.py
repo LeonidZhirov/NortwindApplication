@@ -185,7 +185,8 @@ class NorthwindCLI:
         print("\n📋 Детали заказа:")
         print(f"  Клиент: {self.current_customer.company_name}")
         print(f"  Контакт: {self.current_customer.contact_name}")
-        print(f"  Доставка: {dict(shippers).get(shipper_id, 'Unknown')}")
+        shipper_name = next((s.company_name for s in shippers if s.shipper_id == shipper_id), 'Unknown')
+        print(f"  Доставка: {shipper_name}")
 
     def _create_order(self, ship_via: int) -> OrderResult:
         order_id = self.order_service.create_order(
