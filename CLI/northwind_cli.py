@@ -20,7 +20,8 @@ class NorthwindCLI:
         self.order_repo = OrderRepository(session)
         self.shipper_repo = ShipperRepository(session)
 
-        self.cart_service = CartService()
+        #self.cart_service = CartService()
+        self.carts = {}  # {customer_id: CartService}
         self.order_service = OrderService(self.order_repo)
 
         self.display = DisplayService()
@@ -54,10 +55,11 @@ class NorthwindCLI:
             return
 
         while True:
+            cart = self._get_current_cart()
             self.display.clear_screen()
             self.display.display_header("РЕЖИМ ПОКУПАТЕЛЯ")
             self.display.display_info(f"Текущий клиент: {self.current_customer.company_name}")
-            self.display.display_info(f"Товаров в корзине: {self.cart_service.get_item_count()}")
+            self.display.display_info(f"Товаров в корзине: {cart.get_item_count()}")
 
             print("\nДоступные действия:")
             print("  1. 📋 Просмотреть каталог товаров")
@@ -79,12 +81,22 @@ class NorthwindCLI:
                 self._checkout()
             elif choice == '5':
                 if self._select_customer():
-                    self.cart_service.clear()
+                    #self.cart_service.clear()
+                    pass
             elif choice == '0':
                 break
             else:
                 self.display.display_error("Неверный выбор")
                 self.display.wait_for_key()
+
+    def _get_current_cart(self) -> CartService:
+        if self.current_customer is None:
+            return None
+
+        customer_id = self.current_customer.customer_id
+        if customer_id not in self.carts:
+            self.carts[customer_id] = CartService()
+        return self.carts[customer_id]
 
     def _select_customer(self) -> bool:
         self.display.display_header("ВЫБОР КЛИЕНТА")
@@ -114,10 +126,13 @@ class NorthwindCLI:
     def _add_to_cart(self):
         self.display.display_header("ДОБАВЛЕНИЕ ТОВАРА")
 
+        cart = self._get_current_cart()
         products = self.product_repo.get_all()
         self._show_products_preview(products)
 
         while True:
+
+
             product, quantity = self.input_handler.get_product_selection(products)
             if product is None:
                 break
@@ -128,7 +143,7 @@ class NorthwindCLI:
                 quantity=quantity,
                 unit_price=product.unit_price
             )
-            self.cart_service.add_item(cart_item)
+            cart.add_item(cart_item)
             self.display.display_success(f"Добавлено: {product.product_name} x{quantity} = ${cart_item.total:.2f}")
 
             if not self.input_handler.ask_continue():
@@ -145,13 +160,15 @@ class NorthwindCLI:
 
     def _show_cart(self):
         self.display.display_header("КОРЗИНА")
-        total = self.display.display_cart(self.cart_service.get_items())
+        cart = self._get_current_cart()  # добавить
+        total = self.display.display_cart(cart.get_items())
         if total:
             self.display.display_info(f"Общая сумма: ${total:.2f}")
         self.display.wait_for_key()
 
     def _checkout(self):
-        if self.cart_service.is_empty():
+        cart = self._get_current_cart()
+        if cart.is_empty():
             self.display.display_error("Корзина пуста. Невозможно оформить заказ")
             self.display.wait_for_key()
             return False
@@ -172,7 +189,7 @@ class NorthwindCLI:
         try:
             result = self._create_order(shipper_id)
             self.display.display_order_summary(result)
-            self.cart_service.clear()
+            cart.clear()
             self.display.wait_for_key()
             return True
 
@@ -189,16 +206,17 @@ class NorthwindCLI:
         print(f"  Доставка: {shipper_name}")
 
     def _create_order(self, ship_via: int) -> OrderResult:
+        cart = self._get_current_cart()
         order_id = self.order_service.create_order(
             customer_id=self.current_customer.customer_id,
             employee_id=1,
-            cart_items=self.cart_service.get_items(),
+            cart_items=cart.get_items(),
             ship_via=ship_via
         )
 
         return OrderResult(
             order_id=order_id,
-            total=self.cart_service.get_total(),
+            total=cart.get_total(),
             date=str(datetime.date.today()),
             customer_name=self.current_customer.company_name,
             contact_name=self.current_customer.contact_name
