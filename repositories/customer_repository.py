@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from models.customer_model import Customer
+from models import Customer
 
 
 class CustomerRepository:
