@@ -24,3 +24,10 @@ class CartService:
 
     def get_item_count(self) -> int:
         return len(self._items)
+
+    def remove_item(self, product_id: int) -> bool:
+        for i, item in enumerate(self._items):
+            if item.product_id == product_id:
+                removed = self._items.pop(i)
+                return True
+        return False

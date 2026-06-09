@@ -20,8 +20,8 @@ class NorthwindCLI:
         self.order_repo = OrderRepository(session)
         self.shipper_repo = ShipperRepository(session)
 
-        #self.cart_service = CartService()
-        self.carts = {}  # {customer_id: CartService}
+        self.carts = {}
+        self.product_stock_cache = {}
         self.order_service = OrderService(self.order_repo)
 
         self.display = DisplayService()
@@ -81,7 +81,6 @@ class NorthwindCLI:
                 self._checkout()
             elif choice == '5':
                 if self._select_customer():
-                    #self.cart_service.clear()
                     pass
             elif choice == '0':
                 break
@@ -119,6 +118,10 @@ class NorthwindCLI:
 
     def _show_products(self):
         products = self.product_repo.get_all()
+
+        for product in products:
+            product.units_in_stock = self._get_current_stock(product.product_id)
+
         self.display.display_header("КАТАЛОГ ТОВАРОВ")
         self.display.display_products(products)
         self.display.wait_for_key()
@@ -126,16 +129,21 @@ class NorthwindCLI:
     def _add_to_cart(self):
         self.display.display_header("ДОБАВЛЕНИЕ ТОВАРА")
 
-        cart = self._get_current_cart()
         products = self.product_repo.get_all()
+        for product in products:
+            product.units_in_stock = self._get_current_stock(product.product_id)
+
         self._show_products_preview(products)
 
         while True:
-
-
             product, quantity = self.input_handler.get_product_selection(products)
             if product is None:
                 break
+
+            current_stock = self._get_current_stock(product.product_id)
+            if quantity > current_stock:
+                self.display.display_error(f"Недостаточно товара. Доступно: {current_stock}")
+                continue
 
             cart_item = CartItem(
                 product_id=product.product_id,
@@ -143,7 +151,12 @@ class NorthwindCLI:
                 quantity=quantity,
                 unit_price=product.unit_price
             )
+
+            cart = self._get_current_cart()
             cart.add_item(cart_item)
+
+            self._update_stock(product.product_id, quantity)
+
             self.display.display_success(f"Добавлено: {product.product_name} x{quantity} = ${cart_item.total:.2f}")
 
             if not self.input_handler.ask_continue():
@@ -153,14 +166,26 @@ class NorthwindCLI:
         print("\nДоступные товары:")
         print("-" * 80)
         for product in products[:limit]:
-            print(f"ID: {product.product_id:>3} | {product.product_name:<40} | Цена: ${product.unit_price:>8.2f} | В наличии: {product.units_in_stock}")
+            available = self._get_current_stock(product.product_id)
+            print(f"ID: {product.product_id:>3} | {product.product_name:<40} | Цена: ${product.unit_price:>8.2f} | В наличии: {available}")
 
         if len(products) > limit:
             print(f"\n... и еще {len(products) - limit} товаров")
 
     def _show_cart(self):
         self.display.display_header("КОРЗИНА")
-        cart = self._get_current_cart()  # добавить
+        cart = self._get_current_cart()
+
+        items_to_remove = []
+        for item in cart.get_items():
+            current_stock = self._get_current_stock(item.product_id)
+            if current_stock < 0:
+                items_to_remove.append(item)
+                self.display.display_warning(f"Товар '{item.product_name}' больше недоступен")
+
+        for item in items_to_remove:
+            cart.remove_item(item.product_id)
+
         total = self.display.display_cart(cart.get_items())
         if total:
             self.display.display_info(f"Общая сумма: ${total:.2f}")
@@ -182,6 +207,7 @@ class NorthwindCLI:
         self._show_order_details(shippers, shipper_id)
 
         if not self.input_handler.confirm_action("Подтвердить заказ"):
+            self._rollback_cart()
             self.display.display_error("Заказ отменен")
             self.display.wait_for_key()
             return False
@@ -194,6 +220,7 @@ class NorthwindCLI:
             return True
 
         except Exception as e:
+            self._rollback_cart()
             self.display.display_error(f"Ошибка при создании заказа: {e}")
             self.display.wait_for_key()
             return False
@@ -221,3 +248,25 @@ class NorthwindCLI:
             customer_name=self.current_customer.company_name,
             contact_name=self.current_customer.contact_name
         )
+
+    def _get_current_stock(self, product_id: int) -> int:
+        if product_id in self.product_stock_cache:
+            return self.product_stock_cache[product_id]
+
+        product = self.product_repo.get_by_id(product_id)
+        return product.units_in_stock if product else 0
+
+    def _update_stock(self, product_id: int, quantity: int):
+        current_stock = self._get_current_stock(product_id)
+        self.product_stock_cache[product_id] = current_stock - quantity
+
+    def _restore_stock(self, product_id: int, quantity: int):
+        current_stock = self._get_current_stock(product_id)
+        self.product_stock_cache[product_id] = current_stock + quantity
+
+
+    def _rollback_cart(self):
+        cart = self._get_current_cart()
+        for item in cart.get_items():
+            self._restore_stock(item.product_id, item.quantity)
+        cart.clear()

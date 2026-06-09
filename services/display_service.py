@@ -80,3 +80,7 @@ class DisplayService:
     @staticmethod
     def display_info(message: str):
         print(f"\nℹ️ {message}")
+
+    @staticmethod
+    def display_warning(message: str):
+        print(f"⚠️  {message}")
