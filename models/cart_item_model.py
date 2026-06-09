@@ -1,5 +1,5 @@
 from decimal import Decimal
-from sqlalchemy import Integer, String, Numeric, ForeignKey
+from sqlalchemy import Integer, String, Numeric
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
