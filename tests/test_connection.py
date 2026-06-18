@@ -9,10 +9,10 @@ def test_connection_alternative():
         value = result.scalar()
         print(f"✅ Подключение к БД успешно (результат: {value})")
         session.commit()
-        return True
+        assert True
     except OperationalError as e:
         print(f"❌ Ошибка подключения: {e}")
         session.rollback()
-        return False
+        assert False
     finally:
         session.close()
